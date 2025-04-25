@@ -1,14 +1,14 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import ProjectCard from "@/components/project-card"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { Vote } from "lucide-react"
 
-// This would typically come from a database
-const projectsData = {
+// Default projects data (used if no localStorage data is available)
+const defaultProjectsData = {
   past: [
     {
       id: "1",
@@ -17,6 +17,7 @@ const projectsData = {
       image: "/placeholder.svg?height=200&width=400",
       tags: ["AI", "Music", "Emotion"],
       votes: 0,
+      status: "past",
     },
     {
       id: "2",
@@ -26,6 +27,7 @@ const projectsData = {
       image: "/placeholder.svg?height=200&width=400",
       tags: ["Dashboard", "Productivity", "Wellness"],
       votes: 0,
+      status: "past",
     },
   ],
   current: [
@@ -37,6 +39,7 @@ const projectsData = {
       image: "/placeholder.svg?height=200&width=400",
       tags: ["Social", "Connection", "Community"],
       votes: 0,
+      status: "current",
     },
   ],
   future: [
@@ -48,6 +51,7 @@ const projectsData = {
       image: "/placeholder.svg?height=200&width=400",
       tags: ["Workspace", "Ambient", "Adaptive"],
       votes: 42,
+      status: "future",
     },
     {
       id: "5",
@@ -57,6 +61,7 @@ const projectsData = {
       image: "/placeholder.svg?height=200&width=400",
       tags: ["Developer Tools", "Analysis", "Experience"],
       votes: 28,
+      status: "future",
     },
     {
       id: "6",
@@ -66,12 +71,21 @@ const projectsData = {
       image: "/placeholder.svg?height=200&width=400",
       tags: ["Collaboration", "Remote Work", "Team"],
       votes: 15,
+      status: "future",
     },
   ],
 }
 
 export default function ProjectsPage() {
-  const [projects, setProjects] = useState(projectsData)
+  const [projects, setProjects] = useState(defaultProjectsData)
+
+  // Load projects from localStorage on component mount
+  useEffect(() => {
+    const savedProjects = localStorage.getItem("vibesProjects")
+    if (savedProjects) {
+      setProjects(JSON.parse(savedProjects))
+    }
+  }, [])
 
   const handleVote = (category: "past" | "current" | "future", id: string) => {
     setProjects((prev) => {
@@ -83,10 +97,16 @@ export default function ProjectsPage() {
           votes: updatedCategory[index].votes + 1,
         }
       }
-      return {
+
+      const updatedProjects = {
         ...prev,
         [category]: updatedCategory,
       }
+
+      // Save to localStorage
+      localStorage.setItem("vibesProjects", JSON.stringify(updatedProjects))
+
+      return updatedProjects
     })
   }
 

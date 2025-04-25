@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { Badge } from "@/components/ui/badge"
@@ -8,8 +8,8 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { ThumbsUp } from "lucide-react"
 
-// This would typically come from a database
-const projectsData = [
+// Default projects data
+const defaultProjectsData = [
   {
     id: "1",
     title: "Mood Music Generator",
@@ -40,7 +40,28 @@ const projectsData = [
 ]
 
 export default function ProjectsPreview() {
-  const [projects, setProjects] = useState(projectsData)
+  const [projects, setProjects] = useState(defaultProjectsData)
+
+  // Load projects from localStorage on component mount
+  useEffect(() => {
+    const loadProjects = () => {
+      const savedProjects = localStorage.getItem("vibesProjects")
+      if (savedProjects) {
+        const allProjects = JSON.parse(savedProjects)
+
+        // Select one project from each category for the preview
+        const previewProjects = [
+          allProjects.past[0] || defaultProjectsData[0],
+          allProjects.current[0] || defaultProjectsData[1],
+          allProjects.future[0] || defaultProjectsData[2],
+        ].filter(Boolean) // Remove any undefined entries
+
+        setProjects(previewProjects)
+      }
+    }
+
+    loadProjects()
+  }, [])
 
   const handleVote = (id: string) => {
     setProjects((prev) =>
@@ -48,6 +69,18 @@ export default function ProjectsPreview() {
         project.id === id && project.status === "future" ? { ...project, votes: (project.votes || 0) + 1 } : project,
       ),
     )
+
+    // Update the vote in localStorage
+    const savedProjects = localStorage.getItem("vibesProjects")
+    if (savedProjects) {
+      const allProjects = JSON.parse(savedProjects)
+      const futureProjects = allProjects.future.map((project: any) =>
+        project.id === id ? { ...project, votes: (project.votes || 0) + 1 } : project,
+      )
+
+      allProjects.future = futureProjects
+      localStorage.setItem("vibesProjects", JSON.stringify(allProjects))
+    }
   }
 
   return (

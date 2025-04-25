@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -8,8 +9,8 @@ import { ArrowRight, CheckCircle, Clock, Lightbulb } from "lucide-react"
 import { toast } from "@/components/ui/use-toast"
 import { Toaster } from "@/components/ui/toaster"
 
-// This would typically come from a database
-const initialProjects = {
+// Initial projects data
+const defaultProjects = {
   past: [
     {
       id: "1",
@@ -17,6 +18,7 @@ const initialProjects = {
       description: "An AI-powered music generator that creates custom tracks based on your current mood and vibe.",
       tags: ["AI", "Music", "Emotion"],
       votes: 0,
+      status: "past",
     },
     {
       id: "2",
@@ -25,6 +27,7 @@ const initialProjects = {
         "A personal dashboard that helps you track your emotional state and productivity throughout the day.",
       tags: ["Dashboard", "Productivity", "Wellness"],
       votes: 0,
+      status: "past",
     },
   ],
   current: [
@@ -35,6 +38,7 @@ const initialProjects = {
         "A social platform that connects people based on their emotional and creative wavelengths rather than traditional metrics.",
       tags: ["Social", "Connection", "Community"],
       votes: 0,
+      status: "current",
     },
   ],
   future: [
@@ -45,6 +49,7 @@ const initialProjects = {
         "An adaptive workspace environment that adjusts lighting, sound, and interface based on your current task and mood.",
       tags: ["Workspace", "Ambient", "Adaptive"],
       votes: 42,
+      status: "future",
     },
     {
       id: "5",
@@ -53,6 +58,7 @@ const initialProjects = {
         "A tool that analyzes code not just for efficiency and bugs, but for its emotional impact and developer experience.",
       tags: ["Developer Tools", "Analysis", "Experience"],
       votes: 28,
+      status: "future",
     },
     {
       id: "6",
@@ -61,6 +67,7 @@ const initialProjects = {
         "A set of tools designed to enhance remote collaboration by focusing on emotional synchronization between team members.",
       tags: ["Collaboration", "Remote Work", "Team"],
       votes: 15,
+      status: "future",
     },
   ],
   proposed: [
@@ -71,6 +78,7 @@ const initialProjects = {
       tags: ["API", "Developer Tools", "Emotion"],
       votes: 5,
       proposedBy: "jane@example.com",
+      status: "proposed",
     },
     {
       id: "8",
@@ -79,12 +87,42 @@ const initialProjects = {
       tags: ["Design", "Visualization", "UX"],
       votes: 12,
       proposedBy: "mark@example.com",
+      status: "proposed",
     },
   ],
 }
 
 export default function AdminPage() {
-  const [projects, setProjects] = useState(initialProjects)
+  const [projects, setProjects] = useState(defaultProjects)
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const router = useRouter()
+
+  // Check authentication on component mount
+  useEffect(() => {
+    const checkAuth = () => {
+      const isAuth = localStorage.getItem("vibesAdminAuth") === "true"
+      setIsAuthenticated(isAuth)
+
+      if (!isAuth) {
+        router.push("/admin/login")
+      } else {
+        // Load projects from localStorage if available
+        const savedProjects = localStorage.getItem("vibesProjects")
+        if (savedProjects) {
+          setProjects(JSON.parse(savedProjects))
+        }
+      }
+    }
+
+    checkAuth()
+  }, [router])
+
+  // Save projects to localStorage whenever they change
+  useEffect(() => {
+    if (isAuthenticated) {
+      localStorage.setItem("vibesProjects", JSON.stringify(projects))
+    }
+  }, [projects, isAuthenticated])
 
   const handleDragEnd = (result: any) => {
     const { source, destination } = result
@@ -106,7 +144,14 @@ export default function AdminPage() {
     // If moving to a different list
     if (source.droppableId !== destination.droppableId) {
       const destinationList = [...projects[destination.droppableId as keyof typeof projects]]
-      destinationList.splice(destination.index, 0, removed)
+
+      // Update the project's status to match the new column
+      const updatedProject = {
+        ...removed,
+        status: destination.droppableId,
+      }
+
+      destinationList.splice(destination.index, 0, updatedProject)
 
       setProjects({
         ...projects,
@@ -138,6 +183,11 @@ export default function AdminPage() {
     userSelect: "none",
     opacity: isDragging ? 0.8 : 1,
   })
+
+  // If not authenticated, don't render the admin content
+  if (!isAuthenticated) {
+    return null
+  }
 
   return (
     <div className="container py-12">

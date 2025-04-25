@@ -55,9 +55,27 @@ export default function ProposePage() {
   function onSubmit(values: z.infer<typeof formSchema>) {
     setIsSubmitting(true)
 
-    // Simulate API call
+    // Process the form data
+    const newProject = {
+      id: `proposal-${Date.now()}`, // Generate a unique ID
+      title: values.title,
+      description: values.description,
+      tags: values.tags ? values.tags.split(",").map((tag) => tag.trim()) : [],
+      votes: 0,
+      proposedBy: values.email,
+      status: "proposed",
+    }
+
+    // Add the new project to localStorage
+    const savedProjects = localStorage.getItem("vibesProjects")
+    if (savedProjects) {
+      const allProjects = JSON.parse(savedProjects)
+      allProjects.proposed = [...allProjects.proposed, newProject]
+      localStorage.setItem("vibesProjects", JSON.stringify(allProjects))
+    }
+
+    // Reset form and show success message
     setTimeout(() => {
-      console.log(values)
       setIsSubmitting(false)
       form.reset()
       toast({
