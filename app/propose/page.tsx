@@ -30,6 +30,12 @@ const formSchema = z.object({
       message: "Description must not exceed 500 characters.",
     }),
   tags: z.string().optional(),
+  budget: z
+    .string()
+    .refine((val) => !val || !isNaN(Number(val)), {
+      message: "Budget must be a valid number",
+    })
+    .transform((val) => (val ? Number(val) : 0)),
   name: z.string().min(2, {
     message: "Name must be at least 2 characters.",
   }),
@@ -47,6 +53,7 @@ export default function ProposePage() {
       title: "",
       description: "",
       tags: "",
+      budget: "",
       name: "",
       email: "",
     },
@@ -61,9 +68,13 @@ export default function ProposePage() {
       title: values.title,
       description: values.description,
       tags: values.tags ? values.tags.split(",").map((tag) => tag.trim()) : [],
+      budget: values.budget,
       votes: 0,
       proposedBy: values.email,
+      proposerName: values.name,
       status: "proposed",
+      image: "/placeholder.svg?height=200&width=400",
+      createdAt: new Date().toISOString(),
     }
 
     // Add the new project to localStorage
@@ -149,6 +160,27 @@ export default function ProposePage() {
                         <Input placeholder="AI, Music, Wellness, etc. (comma separated)" {...field} />
                       </FormControl>
                       <FormDescription>Add relevant tags to categorize your project.</FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="budget"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Budget (USD)</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          placeholder="How much are you willing to pay for this project?"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Enter the amount you're willing to pay for this project (optional).
+                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}

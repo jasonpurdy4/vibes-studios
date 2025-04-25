@@ -1,6 +1,7 @@
 "use client"
 
 import Image from "next/image"
+import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
@@ -59,8 +60,8 @@ export default function ProjectCard({ project, category, onVote, showVoteButton 
         </div>
       </CardContent>
       <CardFooter className="p-4 pt-0 flex justify-between items-center">
-        <Button variant="ghost" size="sm">
-          View Details
+        <Button variant="ghost" size="sm" asChild>
+          <Link href={`/projects/${project.id}`}>View Details</Link>
         </Button>
         {showVoteButton && (
           <Button variant="outline" size="sm" className="flex items-center gap-1" onClick={onVote}>

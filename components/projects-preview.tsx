@@ -117,7 +117,7 @@ export default function ProjectsPreview() {
           </CardContent>
           <CardFooter className="p-4 pt-0 flex justify-between items-center">
             <Button asChild variant="ghost" size="sm">
-              <Link href={`/projects?tab=${project.status}`}>View Details</Link>
+              <Link href={`/projects/${project.id}`}>View Details</Link>
             </Button>
             {project.status === "future" && (
               <Button
