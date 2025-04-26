@@ -1,5 +1,9 @@
 "use client"
 
+import { CardFooter } from "@/components/ui/card"
+
+import type React from "react"
+
 import { useState } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
@@ -11,8 +15,11 @@ import { Textarea } from "@/components/ui/textarea"
 import { toast } from "@/components/ui/use-toast"
 import { Toaster } from "@/components/ui/toaster"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Check, Code, Lightbulb, Sparkles } from "lucide-react"
+import { Check, ArrowLeft, Loader2 } from "lucide-react"
+import { Elements } from "@stripe/react-stripe-js"
+import { stripePromise } from "@/lib/stripe"
+import { createPaymentIntent } from "@/app/actions/payment"
+import { PaymentElement, AddressElement, useStripe, useElements } from "@stripe/react-stripe-js"
 
 const formSchema = z.object({
   name: z.string().min(2, {
@@ -21,231 +28,421 @@ const formSchema = z.object({
   email: z.string().email({
     message: "Please enter a valid email address.",
   }),
-  company: z.string().min(2, {
-    message: "Company name must be at least 2 characters.",
-  }),
-  serviceType: z.enum(["prototyping", "consulting", "training"], {
-    required_error: "Please select a service type.",
-  }),
-  message: z
+  projectIdea: z
     .string()
     .min(10, {
-      message: "Message must be at least 10 characters.",
+      message: "Project idea must be at least 10 characters.",
     })
-    .max(500, {
-      message: "Message must not exceed 500 characters.",
+    .max(1000, {
+      message: "Project idea must not exceed 1000 characters.",
     }),
+  budget: z
+    .string()
+    .refine((val) => !isNaN(Number(val)), {
+      message: "Budget must be a valid number",
+    })
+    .transform((val) => (val ? Number(val) : 0)),
 })
+
+function PaymentForm({
+  clientSecret,
+  amount,
+  onSuccess,
+  onCancel,
+}: {
+  clientSecret: string
+  amount: number
+  onSuccess: () => void
+  onCancel: () => void
+}) {
+  const stripe = useStripe()
+  const elements = useElements()
+  const [isProcessing, setIsProcessing] = useState(false)
+  const [errorMessage, setErrorMessage] = useState<string | undefined>()
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    if (!stripe || !elements) {
+      return
+    }
+
+    setIsProcessing(true)
+    setErrorMessage(undefined)
+
+    // Process the payment with Stripe
+    const { error } = await stripe.confirmPayment({
+      elements,
+      confirmParams: {
+        return_url: `${window.location.origin}/payment-success`,
+      },
+    })
+
+    if (error) {
+      setErrorMessage(error.message)
+      setIsProcessing(false)
+    } else {
+      // Payment succeeded - this code won't run as the page will redirect
+      onSuccess()
+    }
+  }
+
+  return (
+    <Card className="w-full">
+      <CardHeader>
+        <CardTitle>Complete Your Payment</CardTitle>
+        <CardDescription>You're paying ${amount.toLocaleString()} for your project</CardDescription>
+      </CardHeader>
+      <form onSubmit={handleSubmit}>
+        <CardContent className="space-y-6">
+          <div className="space-y-4">
+            <PaymentElement />
+            <AddressElement options={{ mode: "billing" }} />
+          </div>
+        </CardContent>
+        <CardFooter className="flex justify-between">
+          <Button type="button" variant="outline" onClick={onCancel} disabled={isProcessing}>
+            Cancel
+          </Button>
+          <Button type="submit" disabled={!stripe || isProcessing}>
+            {isProcessing ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Processing...
+              </>
+            ) : (
+              `Pay $${amount.toLocaleString()}`
+            )}
+          </Button>
+        </CardFooter>
+        {errorMessage && <p className="text-destructive text-center mt-4">{errorMessage}</p>}
+      </form>
+    </Card>
+  )
+}
 
 export default function ConsultingPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [currentStep, setCurrentStep] = useState<"form" | "payment" | "success">("form")
+  const [paymentDetails, setPaymentDetails] = useState<{
+    clientSecret: string
+    amount: number
+  } | null>(null)
+  const [projectDetails, setProjectDetails] = useState<{
+    name: string
+    email: string
+    projectIdea: string
+    budget: number
+  } | null>(null)
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: "",
       email: "",
-      company: "",
-      serviceType: undefined,
-      message: "",
+      projectIdea: "",
+      budget: "0",
     },
   })
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
+  async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsSubmitting(true)
 
-    // Process the form data
-    console.log(values)
+    // Store project details
+    setProjectDetails({
+      name: values.name,
+      email: values.email,
+      projectIdea: values.projectIdea,
+      budget: values.budget,
+    })
 
-    // Reset form and show success message
-    setTimeout(() => {
-      setIsSubmitting(false)
-      form.reset()
+    try {
+      // If budget is $0, skip payment
+      if (values.budget <= 0) {
+        // Submit project without payment
+        handleFreeProject(values)
+      } else {
+        // Create payment intent for paid projects
+        const result = await createPaymentIntent(values.budget, values.email)
+
+        if (result.success && result.clientSecret) {
+          setPaymentDetails({
+            clientSecret: result.clientSecret,
+            amount: values.budget,
+          })
+          setCurrentStep("payment")
+        } else {
+          toast({
+            title: "Error",
+            description: result.error || "Something went wrong. Please try again.",
+            variant: "destructive",
+          })
+        }
+      }
+    } catch (error) {
+      console.error("Error processing submission:", error)
       toast({
-        title: "Inquiry submitted!",
-        description: "Thank you for your interest. We'll be in touch soon.",
+        title: "Error",
+        description: "Something went wrong. Please try again.",
+        variant: "destructive",
       })
-    }, 1000)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  function handleFreeProject(values: z.infer<typeof formSchema>) {
+    // For free projects, just show success message
+    toast({
+      title: "Project Submitted!",
+      description: "Thanks for your project idea! We'll review it and get back to you soon.",
+    })
+    setCurrentStep("success")
+  }
+
+  function handlePaymentSuccess() {
+    setCurrentStep("success")
+  }
+
+  function handlePaymentCancel() {
+    setCurrentStep("form")
+    setPaymentDetails(null)
+  }
+
+  function handleStartOver() {
+    form.reset()
+    setCurrentStep("form")
+    setPaymentDetails(null)
+    setProjectDetails(null)
   }
 
   return (
     <div className="container py-12 md:py-24">
-      <div className="mx-auto max-w-5xl">
+      <div className="mx-auto max-w-3xl">
         <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold tracking-tight">Work With Us</h1>
-          <p className="mt-4 text-lg text-muted-foreground max-w-3xl mx-auto">
-            Partner with Vibes Studios to bring your vision to life. Whether you need rapid prototyping, strategic
-            consulting, or team training, we're here to help.
+          <h1 className="text-4xl font-bold tracking-tight">Tell Me What To Build</h1>
+          <p className="mt-4 text-lg text-muted-foreground">
+            Have an idea for a project? Let me build it for you! Share your vision and set your budget - even $0 is
+            perfectly fine.
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-12 mb-16">
+        {currentStep === "form" && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Project Proposal</CardTitle>
+              <CardDescription>
+                Describe what you want built and how much you're willing to pay. No budget? No problem - $0 is
+                absolutely acceptable!
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                  <FormField
+                    control={form.control}
+                    name="name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Your Name</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Your name" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Email</FormLabel>
+                        <FormControl>
+                          <Input placeholder="your.email@example.com" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="projectIdea"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>What can we build together?</FormLabel>
+                        <FormControl>
+                          <Textarea
+                            placeholder="Describe your project idea in detail. What should it do? What problem does it solve?"
+                            className="min-h-32"
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormDescription>Be as specific as possible about what you want built.</FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="budget"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Your Budget (USD)</FormLabel>
+                        <FormControl>
+                          <Input type="number" min="0" placeholder="0" {...field} />
+                        </FormControl>
+                        <FormDescription>
+                          How much are you willing to pay for this project? $0 is perfectly acceptable!
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <Button type="submit" className="w-full" disabled={isSubmitting}>
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Processing...
+                      </>
+                    ) : (
+                      "Submit Project Idea"
+                    )}
+                  </Button>
+                </form>
+              </Form>
+            </CardContent>
+          </Card>
+        )}
+
+        {currentStep === "payment" && paymentDetails && (
           <div>
-            <h2 className="text-2xl font-bold mb-6">Our Services</h2>
+            <Button variant="outline" className="mb-6" onClick={handlePaymentCancel}>
+              <ArrowLeft className="mr-2 h-4 w-4" /> Back to Form
+            </Button>
 
-            <div className="space-y-8">
-              <div className="flex">
-                <div className="mr-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-                  <Code className="h-6 w-6 text-primary" />
-                </div>
-                <div>
-                  <h3 className="text-xl font-bold">Prototyping</h3>
-                  <p className="text-muted-foreground mt-2">
-                    Rapidly transform your ideas into functional prototypes using AI-powered development techniques that
-                    embody the principles of vibe coding.
-                  </p>
-                </div>
+            <Elements
+              stripe={stripePromise}
+              options={{
+                clientSecret: paymentDetails.clientSecret,
+                appearance: {
+                  theme: "stripe",
+                  variables: {
+                    colorPrimary: "#6d28d9",
+                    colorBackground: "#ffffff",
+                    colorText: "#1f2937",
+                  },
+                },
+              }}
+            >
+              <PaymentForm
+                clientSecret={paymentDetails.clientSecret}
+                amount={paymentDetails.amount}
+                onSuccess={handlePaymentSuccess}
+                onCancel={handlePaymentCancel}
+              />
+            </Elements>
+          </div>
+        )}
+
+        {currentStep === "success" && projectDetails && (
+          <Card>
+            <CardHeader>
+              <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
+                <Check className="h-8 w-8 text-green-600" />
               </div>
-
-              <div className="flex">
-                <div className="mr-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-                  <Lightbulb className="h-6 w-6 text-primary" />
-                </div>
-                <div>
-                  <h3 className="text-xl font-bold">Strategic Consulting</h3>
-                  <p className="text-muted-foreground mt-2">
-                    Get expert guidance on implementing AI and emerging technologies in your business, with a focus on
-                    creating meaningful user experiences.
-                  </p>
-                </div>
+              <CardTitle className="text-center">Project Submitted Successfully!</CardTitle>
+              <CardDescription className="text-center">
+                Thank you for your project idea{projectDetails.budget > 0 ? " and payment" : ""}!
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <h3 className="font-medium">Project Details:</h3>
+                <p className="mt-1 whitespace-pre-wrap">{projectDetails.projectIdea}</p>
               </div>
-
-              <div className="flex">
-                <div className="mr-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-                  <Sparkles className="h-6 w-6 text-primary" />
-                </div>
+              {projectDetails.budget > 0 && (
                 <div>
-                  <h3 className="text-xl font-bold">Team Training</h3>
-                  <p className="text-muted-foreground mt-2">
-                    Empower your team with workshops and training programs focused on AI implementation, rapid
-                    prototyping, and vibe coding principles.
-                  </p>
+                  <h3 className="font-medium">Budget:</h3>
+                  <p className="mt-1">${projectDetails.budget.toLocaleString()}</p>
                 </div>
-              </div>
-            </div>
+              )}
+              <p className="text-muted-foreground">
+                We'll review your project idea and get back to you at {projectDetails.email} soon.
+              </p>
+            </CardContent>
+            <CardFooter>
+              <Button onClick={handleStartOver} className="w-full">
+                Submit Another Project
+              </Button>
+            </CardFooter>
+          </Card>
+        )}
 
-            <div className="mt-8 space-y-4">
-              <h3 className="text-xl font-bold">Why Choose Us?</h3>
-              <div className="space-y-2">
-                <div className="flex items-start">
-                  <Check className="h-5 w-5 text-primary mr-2 mt-1" />
-                  <p>Focus on emotional intelligence in technology</p>
+        <div className="mt-12 space-y-8">
+          <div>
+            <h2 className="text-2xl font-bold mb-4">How It Works</h2>
+            <div className="grid gap-6 md:grid-cols-3">
+              <div className="flex flex-col items-center text-center p-4">
+                <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+                  <span className="font-bold text-primary">1</span>
                 </div>
-                <div className="flex items-start">
-                  <Check className="h-5 w-5 text-primary mr-2 mt-1" />
-                  <p>Expertise in cutting-edge AI and development tools</p>
+                <h3 className="font-bold mb-2">Share Your Idea</h3>
+                <p className="text-muted-foreground">Describe what you want built in as much detail as possible.</p>
+              </div>
+              <div className="flex flex-col items-center text-center p-4">
+                <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+                  <span className="font-bold text-primary">2</span>
                 </div>
-                <div className="flex items-start">
-                  <Check className="h-5 w-5 text-primary mr-2 mt-1" />
-                  <p>Rapid prototyping and iterative development approach</p>
+                <h3 className="font-bold mb-2">Set Your Budget</h3>
+                <p className="text-muted-foreground">Decide how much you're willing to pay - even $0 is fine!</p>
+              </div>
+              <div className="flex flex-col items-center text-center p-4">
+                <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+                  <span className="font-bold text-primary">3</span>
                 </div>
-                <div className="flex items-start">
-                  <Check className="h-5 w-5 text-primary mr-2 mt-1" />
-                  <p>Commitment to creating meaningful digital experiences</p>
-                </div>
+                <h3 className="font-bold mb-2">Get Your Project</h3>
+                <p className="text-muted-foreground">
+                  I'll review your idea and build it according to your specifications.
+                </p>
               </div>
             </div>
           </div>
 
           <div>
-            <Card>
-              <CardHeader>
-                <CardTitle>Get in Touch</CardTitle>
-                <CardDescription>
-                  Fill out the form below to discuss your project or inquire about our services.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Form {...form}>
-                  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                    <FormField
-                      control={form.control}
-                      name="name"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Name</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Your name" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="email"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Email</FormLabel>
-                          <FormControl>
-                            <Input placeholder="your.email@example.com" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="company"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Company</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Your company name" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="serviceType"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Service Type</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select a service type" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="prototyping">Prototyping</SelectItem>
-                              <SelectItem value="consulting">Strategic Consulting</SelectItem>
-                              <SelectItem value="training">Team Training</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormDescription>Select the type of service you're interested in.</FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="message"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Message</FormLabel>
-                          <FormControl>
-                            <Textarea placeholder="What can we build together?" className="min-h-32" {...field} />
-                          </FormControl>
-                          <FormDescription>Provide details about your needs and goals.</FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <Button type="submit" className="w-full" disabled={isSubmitting}>
-                      {isSubmitting ? "Submitting..." : "Submit Inquiry"}
-                    </Button>
-                  </form>
-                </Form>
-              </CardContent>
-            </Card>
+            <h2 className="text-2xl font-bold mb-4">Frequently Asked Questions</h2>
+            <div className="space-y-4">
+              <div>
+                <h3 className="font-bold">Can I really pay $0?</h3>
+                <p className="text-muted-foreground mt-1">
+                  I'm happy to consider projects with no budget. I select projects based on interest and learning
+                  opportunity.
+                </p>
+              </div>
+              <div>
+                <h3 className="font-bold">What types of projects do you build?</h3>
+                <p className="text-muted-foreground mt-1">
+                  I specialize in web applications, AI integrations, and interactive experiences. If you're unsure if
+                  your idea fits, just ask!
+                </p>
+              </div>
+              <div>
+                <h3 className="font-bold">How long does it take to build a project?</h3>
+                <p className="text-muted-foreground mt-1">
+                  Timeline depends on project complexity and current workload. After reviewing your idea, I'll provide
+                  an estimated completion date.
+                </p>
+              </div>
+              <div>
+                <h3 className="font-bold">What happens after I submit my idea?</h3>
+                <p className="text-muted-foreground mt-1">
+                  I'll review your submission and reach out via email to discuss details, clarify requirements, and
+                  confirm next steps.
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       </div>

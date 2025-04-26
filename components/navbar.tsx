@@ -25,7 +25,7 @@ export default function Navbar() {
     },
     {
       href: "/consulting",
-      label: "Consulting",
+      label: "Build For Me",
       active: pathname === "/consulting",
     },
     {

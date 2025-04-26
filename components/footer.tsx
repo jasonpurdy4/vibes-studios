@@ -19,7 +19,7 @@ export default function Footer() {
             Projects
           </Link>
           <Link href="/consulting" className="text-sm text-muted-foreground hover:underline">
-            Consulting
+            Build For Me
           </Link>
           <Link href="/education" className="text-sm text-muted-foreground hover:underline">
             Education

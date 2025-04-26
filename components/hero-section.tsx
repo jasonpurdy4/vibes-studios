@@ -10,20 +10,20 @@ export default function HeroSection() {
           <div className="flex flex-col justify-center space-y-4">
             <div className="space-y-2">
               <h1 className="text-3xl font-bold tracking-tighter sm:text-5xl xl:text-6xl/none">
-                Welcome to Vibes Studios
+                Tell Me What To Build
               </h1>
               <p className="max-w-[600px] text-muted-foreground md:text-xl">
-                Exploring the art and science of vibe coding - where technical excellence meets emotional intelligence.
+                Share your project idea and I'll build it for you. Set your own budget - even $0 is perfectly fine!
               </p>
             </div>
             <div className="flex flex-col gap-2 min-[400px]:flex-row">
               <Button asChild size="lg">
-                <Link href="/projects">
-                  Explore Projects <ArrowRight className="ml-2 h-4 w-4" />
+                <Link href="/consulting">
+                  Submit Your Idea <ArrowRight className="ml-2 h-4 w-4" />
                 </Link>
               </Button>
               <Button asChild variant="outline" size="lg">
-                <Link href="/propose">Propose a Project</Link>
+                <Link href="/projects">View Past Projects</Link>
               </Button>
             </div>
           </div>
@@ -32,10 +32,10 @@ export default function HeroSection() {
               <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full blur-3xl opacity-20 animate-pulse"></div>
               <div className="relative h-full w-full bg-muted/80 rounded-lg border backdrop-blur-sm flex items-center justify-center">
                 <div className="text-center p-8">
-                  <h3 className="text-2xl font-bold mb-4">Vibe Coding</h3>
+                  <h3 className="text-2xl font-bold mb-4">Your Vision, Built</h3>
                   <p className="text-muted-foreground">
-                    Creating digital experiences that resonate on a deeper level, combining technical excellence with
-                    emotional intelligence.
+                    From simple prototypes to complex applications, I'll turn your ideas into reality - with the budget
+                    you set.
                   </p>
                 </div>
               </div>
