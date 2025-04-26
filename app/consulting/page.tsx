@@ -24,15 +24,9 @@ const formSchema = z.object({
   company: z.string().min(2, {
     message: "Company name must be at least 2 characters.",
   }),
-  serviceType: z.enum(["project", "consulting", "training"], {
+  serviceType: z.enum(["prototyping", "consulting", "training"], {
     required_error: "Please select a service type.",
   }),
-  budget: z
-    .string()
-    .refine((val) => !val || !isNaN(Number(val)), {
-      message: "Budget must be a valid number",
-    })
-    .transform((val) => (val ? Number(val) : 0)),
   message: z
     .string()
     .min(10, {
@@ -53,7 +47,6 @@ export default function ConsultingPage() {
       email: "",
       company: "",
       serviceType: undefined,
-      budget: "",
       message: "",
     },
   })
@@ -81,7 +74,7 @@ export default function ConsultingPage() {
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold tracking-tight">Work With Us</h1>
           <p className="mt-4 text-lg text-muted-foreground max-w-3xl mx-auto">
-            Partner with Vibes Studios to bring your vision to life. Whether you need a custom project, strategic
+            Partner with Vibes Studios to bring your vision to life. Whether you need rapid prototyping, strategic
             consulting, or team training, we're here to help.
           </p>
         </div>
@@ -96,10 +89,10 @@ export default function ConsultingPage() {
                   <Code className="h-6 w-6 text-primary" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold">Custom Projects</h3>
+                  <h3 className="text-xl font-bold">Prototyping</h3>
                   <p className="text-muted-foreground mt-2">
-                    From concept to completion, we build custom applications that embody the principles of vibe coding,
-                    creating experiences that resonate with users.
+                    Rapidly transform your ideas into functional prototypes using AI-powered development techniques that
+                    embody the principles of vibe coding.
                   </p>
                 </div>
               </div>
@@ -220,7 +213,7 @@ export default function ConsultingPage() {
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              <SelectItem value="project">Custom Project</SelectItem>
+                              <SelectItem value="prototyping">Prototyping</SelectItem>
                               <SelectItem value="consulting">Strategic Consulting</SelectItem>
                               <SelectItem value="training">Team Training</SelectItem>
                             </SelectContent>
@@ -233,31 +226,12 @@ export default function ConsultingPage() {
 
                     <FormField
                       control={form.control}
-                      name="budget"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Budget (USD)</FormLabel>
-                          <FormControl>
-                            <Input type="number" placeholder="Your estimated budget" {...field} />
-                          </FormControl>
-                          <FormDescription>Enter your estimated budget for this project (optional).</FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
                       name="message"
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Message</FormLabel>
                           <FormControl>
-                            <Textarea
-                              placeholder="Tell us about your project or inquiry"
-                              className="min-h-32"
-                              {...field}
-                            />
+                            <Textarea placeholder="What can we build together?" className="min-h-32" {...field} />
                           </FormControl>
                           <FormDescription>Provide details about your needs and goals.</FormDescription>
                           <FormMessage />
