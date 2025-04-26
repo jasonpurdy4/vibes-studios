@@ -64,6 +64,7 @@ function PaymentForm({
     e.preventDefault()
 
     if (!stripe || !elements) {
+      setErrorMessage("Stripe has not loaded properly. Please refresh the page and try again.")
       return
     }
 
@@ -79,6 +80,7 @@ function PaymentForm({
     })
 
     if (error) {
+      console.error("Payment error:", error)
       setErrorMessage(error.message)
       setIsProcessing(false)
     } else {
@@ -114,7 +116,7 @@ function PaymentForm({
             )}
           </Button>
         </CardFooter>
-        {errorMessage && <p className="text-destructive text-center mt-4">{errorMessage}</p>}
+        {errorMessage && <p className="text-destructive text-center mt-4 px-6 pb-6">{errorMessage}</p>}
       </form>
     </Card>
   )
@@ -133,6 +135,7 @@ export default function ConsultingPage() {
     projectIdea: string
     budget: number
   } | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -146,6 +149,7 @@ export default function ConsultingPage() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsSubmitting(true)
+    setError(null)
 
     // Store project details
     setProjectDetails({
@@ -162,7 +166,9 @@ export default function ConsultingPage() {
         handleFreeProject(values)
       } else {
         // Create payment intent for paid projects
+        console.log("Creating payment intent for budget:", values.budget)
         const result = await createPaymentIntent(values.budget, values.email)
+        console.log("Payment intent result:", result)
 
         if (result.success && result.clientSecret) {
           setPaymentDetails({
@@ -171,18 +177,20 @@ export default function ConsultingPage() {
           })
           setCurrentStep("payment")
         } else {
+          setError(result.error || "Failed to create payment. Please try again.")
           toast({
             title: "Error",
-            description: result.error || "Something went wrong. Please try again.",
+            description: result.error || "Failed to create payment. Please try again.",
             variant: "destructive",
           })
         }
       }
     } catch (error) {
       console.error("Error processing submission:", error)
+      setError("An unexpected error occurred. Please try again.")
       toast({
         title: "Error",
-        description: "Something went wrong. Please try again.",
+        description: "An unexpected error occurred. Please try again.",
         variant: "destructive",
       })
     } finally {
@@ -213,6 +221,7 @@ export default function ConsultingPage() {
     setCurrentStep("form")
     setPaymentDetails(null)
     setProjectDetails(null)
+    setError(null)
   }
 
   return (
@@ -301,6 +310,8 @@ export default function ConsultingPage() {
                       </FormItem>
                     )}
                   />
+
+                  {error && <p className="text-destructive text-sm">{error}</p>}
 
                   <Button type="submit" className="w-full" disabled={isSubmitting}>
                     {isSubmitting ? (
