@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import HeroSection from "@/components/hero-section"
 import FeatureCard from "@/components/feature-card"
 import ProjectsPreview from "@/components/projects-preview"
-import TweetEmbed from "@/components/tweet-embed"
+import StaticTweet from "@/components/static-tweet"
 
 export default function Home() {
   return (
@@ -35,8 +35,22 @@ export default function Home() {
 
           <div className="mt-12 max-w-3xl mx-auto">
             <h3 className="text-xl font-semibold mb-4 text-center">Insights from the AI Community</h3>
-            <TweetEmbed
-              tweetUrl="https://x.com/karpathy/status/1886192184808149383?lang=en"
+            <StaticTweet
+              author={{
+                name: "Andrej Karpathy",
+                username: "karpathy",
+                image: "https://pbs.twimg.com/profile_images/1296667294148382721/9Pr_1ms1_400x400.jpg",
+              }}
+              content={
+                "There's a new kind of coding I call \"vibe coding\", where you fully give in to the vibes, embrace exponentials, and forget that the code even exists. It's possible because the LLMs (e.g. Cursor Composer w Sonnet) are getting too good. Also I just talk to Composer with SuperWhisper so I barely even touch the keyboard. I ask for the dumbest things like \"decrease the padding on the sidebar by half\" because I'm too lazy to find it. I \"Accept All\" always, I don't read the diffs anymore. When I get error messages I just copy paste them in with no comment, usually that fixes it. The code grows beyond my usual comprehension, I'd have to really read through it for a while. Sometimes the LLMs can't fix a bug so I just work around it or ask for random changes until it goes away. It's not too bad for throwaway weekend projects, but still quite amusing. I'm building a project or webapp, but it's not really coding - I just see stuff, say stuff, run stuff, and copy paste stuff, and it mostly works."
+              }
+              date="Nov 1, 2023"
+              stats={{
+                likes: 12453,
+                retweets: 2134,
+                replies: 342,
+              }}
+              url="https://x.com/karpathy/status/1886192184808149383"
               className="max-w-2xl mx-auto"
             />
           </div>
@@ -76,8 +90,8 @@ export default function Home() {
             <ProjectsPreview />
             <div className="mt-12 text-center">
               <Button asChild size="lg" variant="secondary">
-                <Link href="/propose">
-                  <Vote className="mr-2 h-4 w-4" /> Propose a Project
+                <Link href="/consulting">
+                  <Vote className="mr-2 h-4 w-4" /> Work With Us
                 </Link>
               </Button>
             </div>

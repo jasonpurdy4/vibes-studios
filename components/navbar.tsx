@@ -24,9 +24,14 @@ export default function Navbar() {
       active: pathname === "/projects",
     },
     {
-      href: "/propose",
-      label: "Propose",
-      active: pathname === "/propose",
+      href: "/consulting",
+      label: "Consulting",
+      active: pathname === "/consulting",
+    },
+    {
+      href: "/education",
+      label: "Education",
+      active: pathname === "/education",
     },
     {
       href: "/media",
