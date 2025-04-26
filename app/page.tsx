@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button"
 import HeroSection from "@/components/hero-section"
 import FeatureCard from "@/components/feature-card"
 import ProjectsPreview from "@/components/projects-preview"
+import TweetEmbed from "@/components/tweet-embed"
 
 export default function Home() {
   return (
@@ -30,6 +31,14 @@ export default function Home() {
                 </Link>
               </Button>
             </div>
+          </div>
+
+          <div className="mt-12 max-w-3xl mx-auto">
+            <h3 className="text-xl font-semibold mb-4 text-center">Insights from the AI Community</h3>
+            <TweetEmbed
+              tweetUrl="https://x.com/karpathy/status/1886192184808149383?lang=en"
+              className="max-w-2xl mx-auto"
+            />
           </div>
         </section>
 

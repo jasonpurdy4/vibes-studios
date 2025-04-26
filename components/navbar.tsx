@@ -29,6 +29,11 @@ export default function Navbar() {
       active: pathname === "/propose",
     },
     {
+      href: "/media",
+      label: "Media",
+      active: pathname === "/media",
+    },
+    {
       href: "/admin",
       label: "Admin",
       active: pathname === "/admin",
